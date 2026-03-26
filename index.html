@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Los tres ataques más mortales — Guerra de Irán 2026</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/scrollama"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:    #0f1117;
+      --panel: rgba(10, 12, 18, 0.88);
+      --accent:#01f3b3;
+      --text:  #e8e8e8;
+      --muted: #888;
+      --sans:  system-ui, -apple-system, sans-serif;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── SCROLLY CONTAINER ── */
+    #scrolly {
+      position: relative;
+    }
+
+    /* ── MAP (sticky dentro de #scrolly) ── */
+    #map {
+      position: sticky;
+      top: 0;
+      width: 100%;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    .leaflet-control-attribution {
+      font-size: 10px;
+      opacity: 0.5;
+    }
+
+    /* ── CONTENT OVERLAY (intro + steps, todos sobre el mapa) ── */
+    #content {
+      position: relative;
+      z-index: 10;
+      margin-top: -100vh;
+      pointer-events: none;
+    }
+
+    /* ── INTRO ── */
+    #intro {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 6vh 5vw 0;
+      background: linear-gradient(to bottom, rgba(10,12,18,0.95) 40%, transparent);
+    }
+
+    #intro h1 {
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      font-weight: 800;
+      line-height: 1.15;
+      max-width: 600px;
+      color: #fff;
+    }
+
+    #intro h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    #intro .intro-sub {
+      margin-top: 1rem;
+      max-width: 480px;
+      font-size: 0.95rem;
+      color: #fff;
+      line-height: 1.7;
+    }
+
+    #intro .intro-source {
+      margin-top: 2rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #555;
+    }
+
+    .scroll-hint {
+      margin-top: 3rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .scroll-hint::after {
+      content: '';
+      display: inline-block;
+      width: 1px;
+      height: 32px;
+      background: #fff;
+      animation: tickDown 1.4s ease-in-out infinite;
+    }
+
+    @keyframes tickDown {
+      0%   { opacity: 0; transform: scaleY(0); transform-origin: top; }
+      50%  { opacity: 1; transform: scaleY(1); }
+      100% { opacity: 0; transform: scaleY(1); transform-origin: bottom; }
+    }
+
+    /* ── STEPS ── */
+    .step {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 10vh 0 10vh 5vw;
+    }
+
+    .step:last-child {
+      min-height: 80vh;
+    }
+
+    /* ── CARD ── */
+    .card {
+      pointer-events: all;
+      background: var(--panel);
+      border-left: 3px solid var(--accent);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      padding: 2rem 2rem 2rem 1.8rem;
+      max-width: 400px;
+      width: 90%;
+      border-radius: 2px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+      transition: opacity 0.4s, transform 0.4s;
+      opacity: 0.35;
+      transform: translateY(12px);
+    }
+
+    .card.is-active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .card-eyebrow {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.6rem;
+      font-weight: 600;
+    }
+
+    .card-number {
+      font-size: 4rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+
+    .card-number span {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .card-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .card p {
+      font-size: 0.9rem;
+      color: #fff;
+      line-height: 1.65;
+    }
+
+    .card p + p {
+      margin-top: 0.7rem;
+    }
+
+    /* ── OUTRO (fuera de #scrolly, fondo sólido) ── */
+    #outro {
+      background: var(--bg);
+      padding: 5vh 5vw 7vh;
+    }
+
+    #outro p {
+      max-width: 520px;
+      font-size: 0.85rem;
+      color: #aaa;
+      line-height: 1.7;
+    }
+
+    /* ── MARKER PULSE ── */
+    .pulse-ring {
+      border-radius: 50%;
+      animation: pulseAnim 1.6s ease-out infinite;
+    }
+
+    @keyframes pulseAnim {
+      0%   { transform: scale(0.9); opacity: 1; }
+      70%  { transform: scale(2.2); opacity: 0; }
+      100% { transform: scale(0.9); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SCROLLY: mapa sticky + intro + steps, todos apilados -->
+  <div id="scrolly">
+    <div id="map"></div>
+
+    <div id="content">
+
+      <!-- INTRO (superpuesto al mapa con gradiente oscuro) -->
+      <div id="intro">
+        <h1>Los tres ataques más<br><em>mortales</em> de la guerra</h1>
+        <p class="intro-sub">
+          En 26 días de conflicto se registraron 3.953 eventos armados
+          y al menos 1.314 muertes en 18 países.
+          Estos son los tres episodios con mayor número de víctimas documentadas.
+        </p>
+        <p class="intro-source">Fuente: ACLED · 28 feb – 25 mar 2026</p>
+        <div class="scroll-hint">Desplázate</div>
+      </div>
+
+      <!-- STEP 1 -->
+      <div class="step" data-index="0">
+        <div class="card" id="card-0">
+          <div class="card-eyebrow">Ataque nº 1 · 28 feb 2026</div>
+          <div class="card-number">182 <span>muertos</span></div>
+          <h2>La escuela de Minab</h2>
+          <div class="card-meta">Minab, Hormozgán · Irán</div>
+          <p>
+            Fuerzas estadounidenses lanzaron tres misiles Tomahawk contra
+            una base naval de la CGRI en la ciudad de Minab. Uno de los
+            proyectiles impactó en el colegio femenino Hazrate Abulfazl,
+            adyacente a la base.
+          </p>
+          <p>
+            Murieron al menos <strong>168 alumnas y 14 profesoras</strong>.
+            Otros 95 resultaron heridos. El hospital más cercano quedó
+            dañado por la onda expansiva. El Mando Central de EEUU dijo
+            que "investigaba el incidente". Israel negó participación.
+          </p>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step" data-index="1">
+        <div class="card" id="card-1">
+          <div class="card-eyebrow">Ataque nº 2 · 4 mar 2026</div>
+          <div class="card-number">104 <span>muertos</span></div>
+          <h2>El hundimiento del IRIS Dena</h2>
+          <div class="card-meta">Mar de Lacadivas · 25 mn al sur de Galle, Sri Lanka</div>
+          <p>
+            El submarino nuclear USS Charlotte disparó dos torpedos MK-48
+            contra el destructor iraní IRIS Dena en el océano Índico.
+            El primero falló; el segundo hundió el buque.
+          </p>
+          <p>
+            104 marineros iraníes murieron. 32 fueron rescatados por la
+            Armada de Sri Lanka. Fue la <strong>primera vez desde la Segunda
+            Guerra Mundial</strong> que un submarino estadounidense hundía
+            un buque de guerra.
+          </p>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step" data-index="2">
+        <div class="card" id="card-2">
+          <div class="card-eyebrow">Ataque nº 3 · 18 mar 2026</div>
+          <div class="card-number">50 <span>muertos</span></div>
+          <h2>El edificio de Zafaranieh</h2>
+          <div class="card-meta">Distrito 1, Teherán · Irán</div>
+          <p>
+            Fuerzas israelíes atacaron varios puntos del barrio
+            residencial de Zafaranieh, en el norte de Teherán.
+            El objetivo era el ministro de Inteligencia, Ismail Jatib,
+            que murió junto a su mujer e hija.
+          </p>
+          <p>
+            El edificio nº 17 de la calle Fereshteh quedó destruido
+            por completo. Según los informes, <strong>hasta 50 civiles
+            también perdieron la vida</strong> en el ataque y los
+            daños colaterales sobre las fincas vecinas.
+          </p>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /scrolly -->
+
+  <!-- OUTRO: fuera del scrolly, fondo sólido -->
+  <div id="outro">
+    <p>
+      Datos extraídos de ACLED (Armed Conflict Location &amp; Event Data Project).
+      Período: 28 de febrero – 25 de marzo de 2026.
+    </p>
+  </div>
+
+  <script>
+    const events = [
+      { lat: 27.128715183450296,  lng: 57.076292495969646, zoom: 10, label: '182 muertos · Escuela de Minab'      },
+      { lat:  5.9853, lng: 77.4527, zoom:  7, label: '104 muertos · Hundimiento IRIS Dena' },
+      { lat: 35.807,  lng: 51.4607, zoom: 8, label:  '50 muertos · Zafaranieh, Teherán'   },
+    ];
+
+    const introView = { lat: 27, lng: 57, zoom: 4 };
+
+    const map = L.map('map', {
+      zoomControl: false,
+      scrollWheelZoom: false,
+      dragging: false,
+      doubleClickZoom: false,
+    }).setView([introView.lat, introView.lng], introView.zoom);
+
+    L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      { attribution: '&copy; OpenStreetMap contributors &copy; CARTO', subdomains: 'abcd', maxZoom: 19 }
+    ).addTo(map);
+
+    const markers = events.map(ev => {
+      const pulseIcon = L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:40px;height:40px;">
+          <div class="pulse-ring" style="position:absolute;inset:0;background:rgba(1,243,179,0.25);border:2px solid #01f3b3;"></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:#01f3b3;"></div>
+        </div>`,
+        iconSize: [40, 40], iconAnchor: [20, 20],
+      });
+      const dimIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:10px;height:10px;border-radius:50%;background:#555;border:1.5px solid #888;"></div>`,
+        iconSize: [10, 10], iconAnchor: [5, 5],
+      });
+      const marker = L.marker([ev.lat, ev.lng], { icon: dimIcon })
+        .addTo(map)
+        .bindTooltip(ev.label, { direction: 'top', offset: [0, -8] });
+      return { marker, pulseIcon, dimIcon };
+    });
+
+    let currentIndex = -1;
+
+    function activateStep(index) {
+      if (index === currentIndex) return;
+      currentIndex = index;
+      document.querySelectorAll('.card').forEach((c, i) => c.classList.toggle('is-active', i === index));
+      markers.forEach(({ marker, pulseIcon, dimIcon }, i) => marker.setIcon(i === index ? pulseIcon : dimIcon));
+      const ev = events[index];
+      map.flyTo([ev.lat, ev.lng], ev.zoom, { duration: 1.8, easeLinearity: 0.3 });
+    }
+
+    function resetToIntro() {
+      currentIndex = -1;
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('is-active'));
+      markers.forEach(({ marker, dimIcon }) => marker.setIcon(dimIcon));
+      map.flyTo([introView.lat, introView.lng], introView.zoom, { duration: 1.8 });
+    }
+
+    const scroller = scrollama();
+    scroller
+      .setup({ step: '.step', offset: 0.5 })
+      .onStepEnter(({ index }) => activateStep(index))
+      .onStepExit(({ index, direction }) => { if (direction === 'up' && index === 0) resetToIntro(); });
+
+    window.addEventListener('resize', scroller.resize);
+  </script>
+
+</body>
+</html>
