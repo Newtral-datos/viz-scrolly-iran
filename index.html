@@ -374,7 +374,10 @@
       document.querySelectorAll('.card').forEach((c, i) => c.classList.toggle('is-active', i === index));
       markers.forEach(({ marker, pulseIcon, dimIcon }, i) => marker.setIcon(i === index ? pulseIcon : dimIcon));
       const ev = events[index];
-      map.flyTo([ev.lat, ev.lng], ev.zoom, { duration: 1.8, easeLinearity: 0.3 });
+      const offsetPx = map.getContainer().offsetWidth * 0.2;
+      const targetPoint = map.project([ev.lat, ev.lng], ev.zoom).subtract([offsetPx, 0]);
+      const offsetCenter = map.unproject(targetPoint, ev.zoom);
+      map.flyTo(offsetCenter, ev.zoom, { duration: 1.8, easeLinearity: 0.3 });
     }
 
     function resetToIntro() {
